@@ -12,14 +12,26 @@ Panduan menyambungkan tiga bagian yang sudah dibuat: **frontend (Vercel)**,
 ## 1. Database — Supabase
 
 1. Buat project baru di [supabase.com](https://supabase.com).
-2. Ambil connection string di **Project Settings → Database → Connection
-   string** (pilih mode **Session** atau **Transaction pooler** — untuk
-   Alembic/migrasi gunakan **Session** / direct connection, bukan pooler
-   `pgbouncer` transaction mode yang tidak mendukung prepared statements).
-3. Format untuk `DATABASE_URL` backend (driver `psycopg`, bukan `psycopg2`):
+2. Ambil connection string di **Project Settings → Database → Connect →
+   tab "Session pooler"** — **JANGAN** pakai tab "Direct connection":
+   host `db.<ref>.supabase.co` itu **IPv6-only**, dan banyak platform
+   hosting (termasuk sandbox pengembangan Claude Code) tidak punya akses
+   keluar IPv6, jadi akan timeout. Host pooler (`aws-0-<region>.pooler.
+   supabase.com`) IPv4-compatible. Pakai mode **Session** (bukan
+   **Transaction**/port 6543) karena Alembic butuh prepared statement yang
+   tidak didukung mode Transaction.
+3. Format `DATABASE_URL` (driver `psycopg`, bukan `psycopg2`), username
+   pooler formatnya `postgres.<project-ref>` (bukan cuma `postgres`):
    ```
-   postgresql+psycopg://postgres:<password>@<host>:5432/postgres
+   postgresql+psycopg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
    ```
+   **Kalau password mengandung karakter spesial** (`@ : / ? # [ ] %` dsb),
+   wajib di-URL-encode (mis. `@` → `%40`) sebelum ditempel ke connection
+   string, kalau tidak parser URL akan salah membaca batas
+   userinfo/host/path. Contoh di Python: `urllib.parse.quote(password,
+   safe='')`. Kalau ragu, paling aman **reset password DB** di dashboard
+   (Project Settings → Database → Reset Database Password) — password
+   baru dari Supabase biasanya alfanumerik saja, tidak perlu encoding.
 4. **Penting — TimescaleDB:** Supabase managed Postgres **tidak
    menyediakan** extension TimescaleDB. Migrasi
    (`backend/alembic/versions/0001_initial_schema.py`) sudah disesuaikan
@@ -29,12 +41,22 @@ Panduan menyambungkan tiga bagian yang sudah dibuat: **frontend (Vercel)**,
    penuh, hanya tanpa partisi/kompresi otomatis TimescaleDB). Sudah diuji
    lokal terhadap Postgres 16 tanpa TimescaleDB — migrasi selesai bersih.
 5. Migrasi dijalankan otomatis saat backend start (lihat `railway.json`
-   Bagian 2), atau manual:
+   Bagian 2), atau manual dari mesin/environment yang punya akses jaringan
+   keluar ke port 5432:
    ```bash
    cd backend
-   export DATABASE_URL="postgresql+psycopg://postgres:<password>@<host>:5432/postgres"
+   export DATABASE_URL="postgresql+psycopg://postgres.<project-ref>:<password-encoded>@aws-0-<region>.pooler.supabase.com:5432/postgres"
    alembic upgrade head
    ```
+
+> **Catatan:** sandbox pengembangan Claude Code (tempat SPEC.md ini
+> dieksekusi) memblokir koneksi keluar ke port database (5432) sepenuhnya
+> — terkonfirmasi lewat tes socket langsung (port 443 ke host yang sama
+> berhasil connect, port 5432 selalu timeout). Jadi `alembic upgrade head`
+> terhadap Supabase **tidak bisa diverifikasi dari sandbox itu**, hanya
+> bisa diverifikasi dari tempat backend benar-benar berjalan (Railway, atau
+> mesin lokal developer). Cek **Deploy Logs** di Railway untuk konfirmasi
+> migrasi berhasil.
 
 ---
 
