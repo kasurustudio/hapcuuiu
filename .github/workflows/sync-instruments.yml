@@ -1,0 +1,31 @@
+name: Sync Instruments
+
+# Pengganti Celery Beat job `sync_instruments` (SPEC.md Bagian 6.4: 06:00 WIB
+# harian) untuk deployment tanpa worker 24/7 (Render free tier).
+# 06:00 WIB = 23:00 UTC hari sebelumnya.
+on:
+  schedule:
+    - cron: "0 23 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync-instruments:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Jalankan sync_instruments
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m scripts.run_ingest sync_instruments

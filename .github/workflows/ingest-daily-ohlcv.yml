@@ -1,0 +1,31 @@
+name: Ingest Daily OHLCV
+
+# Pengganti Celery Beat job `ingest_daily_ohlcv` (SPEC.md Bagian 6.4: 17:30
+# WIB hari bursa) untuk deployment tanpa worker 24/7 (Render free tier).
+# 17:30 WIB = 10:30 UTC, hari Senin-Jumat WIB sama dengan hari Senin-Jumat UTC.
+on:
+  schedule:
+    - cron: "30 10 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  ingest-daily-ohlcv:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Jalankan ingest_daily_ohlcv
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m scripts.run_ingest ingest_daily_ohlcv

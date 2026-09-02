@@ -1,6 +1,41 @@
 # Progress
 
-## Addendum deployment (2026-09-02, setelah Fase 1)
+## Addendum deployment #2 (2026-09-02): pindah dari Railway ke Render + GitHub Actions
+
+User menyampaikan Railway hanya trial 30 hari/$5, lalu wajib berbayar — minta
+opsi tanpa biaya. Disusun ulang jalur deploy backend:
+
+- **`backend/render.yaml`** ditambahkan — Blueprint Render (`plan: free`,
+  build dari Dockerfile yang sudah ada, health check `/healthz`, migrasi
+  otomatis jalan di `dockerCommand` sebelum `uvicorn` start).
+- **Celery worker/beat tidak dipakai di jalur gratis ini** — Render free
+  tier tidak menyediakan background worker gratis, dan menjalankan
+  Redis+worker 24/7 di tempat lain berarti biaya lagi. Sebagai gantinya:
+  - `backend/scripts/run_ingest.py` ditambahkan — entry point yang
+    memanggil fungsi task Celery yang sama persis
+    (`app.workers.tasks.ingest._sync_instruments` /
+    `_ingest_daily_ohlcv`), tanpa logika terduplikasi.
+  - `.github/workflows/sync-instruments.yml` dan
+    `.github/workflows/ingest-daily-ohlcv.yml` ditambahkan — cron GitHub
+    Actions (gratis untuk repo publik) menggantikan jadwal Celery Beat
+    persis sesuai SPEC.md Bagian 6.4 (06:00 WIB dan 17:30 WIB hari bursa).
+  - Kode Celery (`backend/app/workers/`, `railway.json`) **tidak dihapus**
+    — tetap tersedia kalau nanti ada budget untuk worker 24/7 (didoku­
+    mentasikan sebagai opsi di `DEPLOYMENT.md` Bagian 6, bersama Fly.io).
+- **`DEPLOYMENT.md` ditulis ulang**: Render + GitHub Actions + Supabase
+  jadi jalur utama (gratis, tanpa kartu kredit), Railway/Fly.io jadi
+  alternatif opsional untuk kalau butuh backend selalu nyala.
+- Trade-off yang didokumentasikan ke user: Render free tier tidur setelah
+  ±15 menit idle (cold start ~30-50 detik pada request pertama setelah
+  itu) — dianggap dapat diterima untuk decision-support tool yang belum
+  butuh respons real-time.
+- Diuji lokal: `python -m scripts.run_ingest sync_instruments` berhasil
+  jalan terhadap Postgres lokal (hasil `{'created': 0, 'updated': 48}`,
+  karena instrumen sudah ter-seed dari sesi sebelumnya). Syntax kedua
+  workflow YAML divalidasi dengan `yaml.safe_load`. Test suite (27 test)
+  tetap hijau setelah perubahan ini.
+
+## Addendum deployment #1 (2026-09-02, setelah Fase 1)
 
 Menindaklanjuti setup deploy user (Vercel untuk frontend, rencana Supabase +
 Railway untuk backend):
