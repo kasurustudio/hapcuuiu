@@ -165,12 +165,29 @@ def upgrade() -> None:
     )
 
     # TimescaleDB hypertable — partisi per bulan (SPEC.md Bagian 5.1).
-    # Membutuhkan extension timescaledb, sudah tersedia di image
-    # timescale/timescaledb yang dipakai docker-compose.yml.
-    op.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
+    # Tersedia di image timescale/timescaledb yang dipakai docker-compose.yml,
+    # TAPI tidak tersedia di managed Postgres seperti Supabase. Dibungkus DO
+    # block: kalau extension tidak ada di server ini, langkah ini di-skip
+    # dengan aman dan `ohlcv` tetap jadi tabel Postgres biasa (tetap benar
+    # secara fungsional, hanya tanpa partisi otomatis TimescaleDB).
     op.execute(
-        "SELECT create_hypertable('ohlcv', 'ts', chunk_time_interval => INTERVAL '1 month', "
-        "migrate_data => true)"
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb'
+            ) THEN
+                CREATE EXTENSION IF NOT EXISTS timescaledb;
+                PERFORM create_hypertable(
+                    'ohlcv', 'ts',
+                    chunk_time_interval => INTERVAL '1 month',
+                    migrate_data => true,
+                    if_not_exists => true
+                );
+            END IF;
+        END
+        $$;
+        """
     )
 
 

@@ -1,5 +1,29 @@
 # Progress
 
+## Addendum deployment (2026-09-02, setelah Fase 1)
+
+Menindaklanjuti setup deploy user (Vercel untuk frontend, rencana Supabase +
+Railway untuk backend):
+
+- **Migrasi `0001_initial_schema.py` diubah**: langkah `create_hypertable`
+  TimescaleDB sekarang dibungkus pengecekan `pg_available_extensions` —
+  di-skip otomatis kalau extension tidak tersedia di server (mis. Supabase
+  managed Postgres tidak menyediakan TimescaleDB). Diverifikasi ulang
+  terhadap Postgres 16 lokal tanpa TimescaleDB: migrasi selesai bersih,
+  seluruh 9 tabel terbentuk. `ohlcv` tetap fungsional penuh sebagai tabel
+  Postgres biasa tanpa hypertable di lingkungan seperti itu.
+- **`backend/railway.json`** ditambahkan untuk deploy backend ke Railway
+  (build via Dockerfile yang sudah ada, start command menjalankan
+  `alembic upgrade head` lalu `uvicorn`).
+- **`DEPLOYMENT.md`** ditambahkan: panduan step-by-step menyambungkan
+  Vercel (frontend) ↔ Railway (backend + Celery worker/beat) ↔ Supabase
+  (database), termasuk env var yang dibutuhkan tiap sisi dan cara seed
+  data awal manual.
+- Root cause 404 awal di Vercel sudah terkonfirmasi user: Root Directory
+  belum diarahkan ke `frontend` — sudah diperbaiki di sisi user, frontend
+  sekarang live dan menampilkan fallback "Backend belum aktif" dengan
+  benar (perilaku yang memang diharapkan sebelum backend di-deploy).
+
 ## Fase 1 — Fondasi ✅ Selesai (2026-09-02)
 
 Sesuai roadmap SPEC.md Bagian 17.
