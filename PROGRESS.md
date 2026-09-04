@@ -1,5 +1,58 @@
 # Progress
 
+## Addendum UI prototype (2026-09-04): frontend dengan data dummy, sebelum backend
+
+User minta lihat prototipe UI dulu di Vercel sebelum setup backend lebih jauh.
+Dibangun 5 halaman utama pakai **data mock deterministik** (bukan API asli):
+
+- `/` Dashboard — ringkasan IHSG, top gainer/loser, sinyal terbaru sesuai mode aktif
+- `/analysis/[symbol]` — halaman inti sesuai SPEC.md Bagian 14.2: candlestick
+  chart (`lightweight-charts`) dengan overlay entry zone/SL/TP/S-R, mini
+  chart RSI(14) asli (dihitung dari data candle, bukan acak), panel rencana
+  trading + position sizing, tab Ringkasan/Teknikal/Fundamental/Level/
+  Pattern/Riwayat (tab yang datanya belum ada — Pattern, Riwayat — diberi
+  keterangan jujur "belum tersedia, direncanakan Fase X", bukan data palsu)
+- `/screener` — preset SPEC.md Bagian 11.2 (Momentum Breakout, dst, dengan
+  kriteria yang disederhanakan supaya bisa dievaluasi dari objek Signal
+  mock) + filter skor/aksi/pencarian yang benar-benar berfungsi
+- `/watchlist`, `/portfolio` — sesuai SPEC.md Bagian 14.1
+
+**Keputusan teknis:**
+- Mode switcher global (Scalp/Day/Swing/Invest) pakai Zustand + localStorage
+  (`lib/store.ts`), mengubah entry/SL/TP di seluruh app tanpa reload —
+  acceptance criteria SPEC.md Bagian 16.6 dicek manual via Playwright, lolos.
+- Semua angka mock **deterministik** (seeded PRNG di `lib/prng.ts`, bukan
+  `Math.random()`) supaya render server & client cocok saat hydration
+  Next.js. Logika kalkulasi entry/SL/TP/position sizing/tick size di
+  `lib/mock-data.ts` & `lib/tick.ts` sengaja meniru rumus asli di SPEC.md
+  Bagian 8.4-8.6 & 8.8 (bukan angka acak murni), termasuk gate "R:R di
+  bawah minimum mode -> paksa hold" dari CLAUDE.md.
+- **Bug hydration nyata ditemukan & diperbaiki** lewat testing Playwright
+  sungguhan (bukan cuma `tsc`/build): fungsi shuffle rationale bullish/
+  bearish awalnya pakai `.sort(() => rng()-0.5)` — pola ini
+  implementation-defined, hasilnya beda antara V8 Node (SSR) dan V8
+  Chromium (hydration client), menyebabkan React hydration mismatch.
+  Diganti Fisher-Yates shuffle deterministik (`pickTemplates` di
+  `lib/mock-data.ts`).
+- **Bug dark mode ditemukan & diperbaiki**: `className="dark"` di `<html>`
+  tidak berefek karena Tailwind v4 di setup default masih pakai deteksi
+  `prefers-color-scheme`, bukan class strategy — seluruh app diam-diam
+  render mode terang (body background putih), bikin teks abu-abu jadi
+  hampir tidak kebaca di atas card gelap. Diperbaiki dengan set warna dark
+  langsung di `:root` (`app/globals.css`), sesuai SPEC.md Bagian 14.3
+  "Dark mode wajib".
+- Diverifikasi dengan Playwright headless Chromium sungguhan (bukan cuma
+  curl/tsc): 0 console error/pageerror di kelima halaman, di keempat mode,
+  build production (`npm run build` + `next start`) dicek langsung,
+  termasuk screenshot visual tiap halaman.
+
+**Yang sengaja belum dikerjakan** (di luar scope "lihat prototipe dulu"):
+autentikasi login di frontend, koneksi ke backend asli (halaman Dashboard
+tadinya fetch API instruments — sekarang full mock, `lib/api.ts` lama
+dihapus karena tidak dipakai; akan dibuat ulang saat wiring API asli),
+halaman journal/backtest/alerts/settings (tidak diminta di scope prototipe
+ini).
+
 ## Addendum deployment #2 (2026-09-02): pindah dari Railway ke Render + GitHub Actions
 
 User menyampaikan Railway hanya trial 30 hari/$5, lalu wajib berbayar — minta

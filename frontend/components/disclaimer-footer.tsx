@@ -4,7 +4,7 @@
  */
 export function DisclaimerFooter() {
   return (
-    <footer className="border-t border-black/10 dark:border-white/10 px-4 py-3 text-center text-xs text-neutral-500 dark:text-neutral-400">
+    <footer className="border-t border-white/10 px-4 py-3 text-center text-xs text-neutral-400">
       Aplikasi ini adalah decision support tool, bukan penasihat investasi.
       Semua sinyal, harga beli, dan harga jual adalah hasil kalkulasi
       rule-based terhadap data historis, bukan jaminan hasil di masa depan.
