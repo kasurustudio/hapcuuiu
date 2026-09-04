@@ -1,5 +1,126 @@
 # Progress
 
+## Fase 2 — Mesin Analisis ✅ Selesai (2026-09-04)
+
+Sesuai roadmap SPEC.md Bagian 17. Dipicu oleh permintaan user untuk mulai
+menyiapkan logic asli (bukan mock) supaya platform bisa dipakai — disepakati
+prioritas "semua mode termasuk Scalping/Day Trading" untuk arah jangka
+panjang, dengan data intraday real-time ditunda sampai ada vendor berbayar
+(lihat catatan "Ditunda" di bawah). Fase 2 sendiri mode-agnostic (indikator
+teknikal murni), jadi tidak terpengaruh keputusan itu.
+
+### Apa yang selesai
+
+1. **Tick size utility** (`app/core/tick.py`) — `round_to_tick()`/
+   `get_tick_size()` sesuai tabel SPEC.md Bagian 8.8, pakai `Decimal`.
+2. **~30 indikator teknikal** di `app/services/indicators/`, dipecah per
+   kategori sesuai SPEC.md Bagian 7.1, semua pure function (DataFrame
+   masuk, Series/DataFrame keluar, tanpa I/O):
+   - `trend.py` — SMA, EMA, MACD, ADX+DI, Parabolic SAR, SuperTrend, Ichimoku
+   - `momentum.py` — RSI (+deteksi divergence fractal), Stochastic,
+     Stochastic RSI, CCI, Williams %R, ROC, MFI
+   - `volatility.py` — ATR/ATR%, Bollinger Bands+Bandwidth+%B, Keltner
+     Channel, Donchian Channel, Historical Volatility
+   - `volume.py` — Volume MA, Relative Volume, OBV, VWAP (reset harian),
+     Anchored VWAP, Accumulation/Distribution, Volume Profile (POC/VAH/VAL)
+   - `structure.py` — Pivot Points (Classic/Fibonacci/Camarilla, harian &
+     mingguan), Fibonacci retracement/extension, Swing High/Low (fractal)
+   - `common.py` — `wilder_smooth()`/`true_range()` dipakai bersama
+     (ATR/ADX/RSI semua pakai smoothing Wilder yang sama, bukan EMA biasa)
+   - `snapshot.py` — merangkai semua di atas jadi satu snapshot nilai
+     terbaru per kategori (bentuknya = `indicator_snapshots.payload`)
+3. **Detektor Support/Resistance** (`app/services/levels/detector.py`) —
+   6 langkah algoritma SPEC.md Bagian 7.2 diimplementasikan apa adanya:
+   swing fractal (n=5, 250 bar) → clustering toleransi 0.5×ATR → scoring
+   strength 5 komponen berbobot (touch_count 30%, volume 25%, recency
+   decay 20%, rejection wick 15%, timeframe weight 10%) → tambah level dari
+   POC volume profile/pivot/round number/EMA50-200/52w high-low → filter
+   strength>=40, maks 8 per sisi → klasifikasi support/resistance +
+   `role_flipped`.
+4. **Candlestick pattern + filter konteks** (`app/services/patterns/
+   candlestick.py`) — 12 pattern (Doji, Marubozu, Hammer/Hanging Man,
+   Inverted Hammer/Shooting Star, Bullish/Bearish Engulfing, Morning/
+   Evening Star, Piercing Line/Dark Cloud Cover, Three White Soldiers/
+   Black Crows). **Filter konteks diimplementasikan sungguhan** (bukan
+   cuma deteksi bentuk) — pattern reversal hanya dilaporkan kalau ada
+   downtrend/uptrend monoton >=5 bar SEBELUM pattern, atau dekat level
+   support/resistance; kalau tidak, pattern-nya di-skip sama sekali. Diuji
+   eksplisit dengan test negatif (`test_hammer_shape_without_any_context_
+   is_not_reported`).
+5. **Endpoint API** (SPEC.md Bagian 13): `GET /instruments/{symbol}/
+   indicators`, `/levels`, `/patterns` — `/patterns` memakai level S/R dari
+   `/levels` sebagai konteks, jadi kedua endpoint konsisten satu sama lain.
+   Gate `INSUFFICIENT_DATA` (422) kalau data OHLCV kurang dari 60 bar.
+
+### Verifikasi
+
+- **146 test lolos** (naik dari 27 di akhir Fase 1), coverage total **95%**
+  (syarat CLAUDE.md 70%), semua modul indikator/levels/patterns baru di
+  **90-100%** coverage individual.
+- Banyak indikator diverifikasi lewat **cross-check implementasi independen**
+  (bukan cuma re-test angka yang sama): ADX, RSI, dan MACD masing-masing
+  punya reimplementasi ulang dari nol di file test (loop Python biasa,
+  BUKAN memanggil fungsi yang diuji) untuk membuktikan hasilnya benar
+  secara matematis, bukan cuma konsisten dengan dirinya sendiri.
+- **1 bug hydration-style ditemukan & diperbaiki saat menulis test**:
+  fungsi `_is_downtrend`/`_is_uptrend` di deteksi pattern awalnya cuma
+  membandingkan titik awal-akhir window (gampang salah-positif kalau
+  harga zig-zag), dan untuk pattern 3-candle sempat memasukkan bar pattern
+  itu sendiri ke jendela pengecekan tren (mengotori hasil). Ditemukan lewat
+  test negatif yang sengaja dibuat ketat, diperbaiki jadi cek monotonic
+  penuh atas bar SEBELUM pattern mulai.
+- Endpoint API diuji end-to-end lewat `TestClient` + Postgres asli (bukan
+  mock), termasuk jalur `INSUFFICIENT_DATA`.
+
+### Keputusan teknis & alasan
+
+- **Tidak pakai `pandas-ta`** — semua indikator ditulis manual dengan
+  pandas/numpy. Alasan: (1) `pandas-ta` punya masalah kompatibilitas
+  dikenal dengan numpy>=2.0 (proyek ini pakai numpy 2.2), (2) CLAUDE.md
+  tetap mensyaratkan unit test dengan nilai referensi manual meski pakai
+  library, jadi tidak menghemat effort testing; nulis manual memberi
+  kontrol penuh dan menghindari "bergantung buta pada library".
+- **Konfigurasi mode (`config/modes.yaml`) belum dibaca di sini** — loader
+  config mode adalah item eksplisit Fase 3 (Bagian 17: "Loader konfigurasi
+  mode dari YAML"). Endpoint `/indicators` di Fase 2 karena itu
+  mode-agnostic: mengembalikan semua indikator dengan periode default
+  SPEC.md Bagian 7.1, bukan subset per-mode. Parameter `set=` yang
+  disebut contoh URL SPEC.md Bagian 13 belum diimplementasikan — nanti
+  tersambung begitu modes.yaml loader ada di Fase 3.
+- **Bobot timeframe & strength sumber tambahan (POC/pivot/round number/
+  EMA/52w) di detector S/R pakai nilai default yang saya tentukan sendiri**
+  — SPEC.md Bagian 7.2 memberi formula presisi untuk strength cluster
+  berbasis swing (5 komponen berbobot), tapi tidak memberi angka pasti
+  untuk bobot antar-timeframe atau strength level dari sumber non-swing.
+  Didokumentasikan di komentar `detector.py`, gampang dikalibrasi ulang.
+- **Minimum data endpoint (60 bar)** dipilih independen dari
+  `MIN_BARS_BY_MODE` di `validator.py` (100-300 tergantung mode) — gate
+  mode-based itu urusan signal engine Fase 3. 60 bar dipilih supaya cukup
+  untuk indikator dengan periode terpanjang di sini (Ichimoku senkou
+  ~78 bar sebenarnya masih bisa NaN di bar-bar awal, tapi tidak
+  menghalangi indikator lain yang lebih pendek).
+
+### Ditunda / butuh tindak lanjut
+
+- **Data intraday real-time (Scalping/Day Trading) belum ada** — user
+  memilih "pakai yang gratis dulu": rencana ke depan adalah ingest lebih
+  sering (tiap 15-30 menit saat jam bursa via GitHub Actions, masih
+  gratis) memakai kapabilitas intraday terbatas `yfinance`, dengan
+  Scalping tetap ditandai degraded sesuai desain SPEC.md sendiri (Bagian
+  6.2) sampai ada vendor data berbayar. Belum diimplementasikan — nunggu
+  signal engine (Fase 3) yang akan menentukan gate liquidity/data quality
+  per mode.
+- **Volume Profile pakai bucketing sederhana** (assign volume bar
+  berdasarkan typical price ke 1 bucket), bukan distribusi volume across
+  the bar's high-low range. Cukup untuk POC/VAH/VAL yang wajar, tapi versi
+  production-grade biasanya mendistribusikan volume merata di sepanjang
+  range bar.
+- **Chart pattern** (Double Top/Bottom, Head & Shoulders, dst — SPEC.md
+  Bagian 7.3, ditandai "Fase 2" di situ tapi merujuk ke fase rollout
+  MARKET bukan fase roadmap Bagian 17) sengaja TIDAK dikerjakan — roadmap
+  Bagian 17 Fase 2 eksplisit hanya minta "deteksi candlestick pattern",
+  bukan chart pattern.
+
 ## Addendum UI prototype (2026-09-04): frontend dengan data dummy, sebelum backend
 
 User minta lihat prototipe UI dulu di Vercel sebelum setup backend lebih jauh.
