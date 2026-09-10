@@ -98,6 +98,13 @@ sendiri kapan saja (lihat `desktop/src-tauri/binaries/README.md`).
 - Frontend: `npm run build` bersih (lint+typecheck+export), 5 halaman
   ter-generate sebagai static HTML.
 - File YAML `build-macos.yml` divalidasi `yaml.safe_load`.
+- **`build-macos.yml` sudah jalan sungguhan di `macos-latest` dan SUKSES**
+  (run otomatis dari push, selesai ~7 menit) — ini validasi nyata pertama
+  bahwa kode Rust/Tauri benar-benar compile (tidak bisa dicek di sandbox
+  Linux sesi ini). Artifact `.dmg` berhasil dihasilkan dan diupload
+  (~20 MB). Belum dicoba install/jalan di mesin macOS fisik — Gatekeeper
+  kemungkinan minta klik-kanan-buka karena `.dmg` unsigned/belum
+  di-notarize.
 
 ### Keputusan teknis & alasan
 
@@ -121,14 +128,12 @@ sendiri kapan saja (lihat `desktop/src-tauri/binaries/README.md`).
 
 ### Ditunda / butuh tindak lanjut
 
-- **`.dmg` asli belum pernah dihasilkan/dijalankan** di sesi ini (sandbox
-  Linux tidak punya toolchain Apple) — perlu dipicu sekali lewat
-  `workflow_dispatch` pada `build-macos.yml` di GitHub, atau build manual
-  di Mac user sendiri (`desktop/src-tauri/binaries/README.md`), untuk
-  benar-benar memvalidasi hasil install/run di macOS nyata (termasuk
-  apakah perlu notarization Apple untuk distribusi di luar mesin sendiri
-  — belum dikonfigurasi, `.dmg` unsigned kemungkinan butuh
-  klik-kanan-buka/allow di Gatekeeper pertama kali).
+- **`.dmg` sudah berhasil dibuild CI, tapi belum pernah diinstall/dijalankan
+  di mesin macOS fisik** — perlu didownload dari artifact workflow run
+  (lihat link di atas) dan dicoba oleh user sendiri untuk memvalidasi
+  install/run di macOS nyata. Notarization Apple untuk distribusi di luar
+  mesin sendiri belum dikonfigurasi — `.dmg` unsigned kemungkinan butuh
+  klik-kanan-buka/allow di Gatekeeper pertama kali.
 - **Auto-update aplikasi desktop belum ada** — Tauri punya plugin updater
   bawaan, belum diintegrasikan; untuk saat ini update = download `.dmg`
   baru dari artifact GitHub Actions tiap ada perubahan.
