@@ -1,0 +1,7 @@
+<!-- PLACEHOLDER: bukan logo resmi SPE International. Ganti dengan aset SVG asli
+     hasil ekspor Figma (node 2:33 "logo spe black 1" / 2:102 "logo spe black 2"). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Placeholder logo SPE">
+  <circle cx="60" cy="60" r="58" fill="#fff5ec"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#161d45" stroke-width="2"/>
+  <text x="60" y="68" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="30" fill="#161d45">SPE</text>
+</svg>

@@ -1,0 +1,323 @@
+/* ==========================================================================
+   Home page - slicing dari Figma node 2:15, 2:161, 2:184
+   (section "SPE WEBSITE" > "SPE Website - Home Page 1/2/3")
+   ========================================================================== */
+
+/* ============ Hero (node 2:15) ============ */
+
+.hero {
+    position: relative;
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    color: var(--spe-white);
+}
+
+.hero__bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-color: #6b4a3a; /* fallback warna dasar foto rig minyak */
+}
+
+.hero__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(22, 29, 69, 0) 55%, rgba(22, 29, 69, 0.55) 100%);
+    mix-blend-mode: multiply;
+}
+
+.hero__inner {
+    position: relative;
+    z-index: 1;
+    width: var(--container-width);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(280px, 480px) 1fr;
+    align-items: center;
+    gap: clamp(1.5rem, 4vw, 4rem);
+    padding: 3rem 0;
+}
+
+.hero-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    background: linear-gradient(to bottom, var(--spe-blue), var(--spe-dark-blue));
+    border-radius: 35px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), inset 5px 5px 5px rgba(247, 224, 183, 0.5);
+    padding: clamp(1.5rem, 2.5vw, 2.5rem);
+}
+
+.hero-card__logo {
+    width: 96px;
+    height: auto;
+}
+
+.hero-card__title {
+    font-family: var(--font-script);
+    font-style: italic;
+    font-weight: 700;
+    font-size: clamp(1.6rem, 2.6vw, 2.4rem);
+    line-height: 1.15;
+    margin: 0 0 0.75rem;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+}
+
+.hero-card__text {
+    font-style: italic;
+    font-size: clamp(0.95rem, 1.1vw, 1.1rem);
+    line-height: 1.5;
+    text-align: justify;
+    margin: 0;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.hero-headline {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-script);
+    font-style: italic;
+    font-weight: 700;
+    line-height: 0.95;
+    text-align: right;
+}
+
+.hero-headline__line {
+    font-size: clamp(2.5rem, 6.5vw, 7rem);
+    background: linear-gradient(93deg, var(--spe-dark-blue) 0%, var(--spe-blue) 99%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 11px rgba(0, 0, 0, 0.75));
+}
+
+.hero__cta {
+    position: relative;
+    z-index: 1;
+    width: var(--container-width);
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 2rem;
+}
+
+.hero__cta-title {
+    font-family: var(--font-script);
+    font-style: italic;
+    font-weight: 700;
+    font-size: clamp(1.1rem, 1.6vw, 1.6rem);
+    margin: 0 0 0.25rem;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+}
+
+.hero__cta-text {
+    font-style: italic;
+    font-size: clamp(0.85rem, 1.1vw, 1.1rem);
+    margin: 0;
+    max-width: 30ch;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+}
+
+.hero__cta-link {
+    font-family: var(--font-script);
+    font-size: clamp(1.2rem, 1.8vw, 2rem);
+    text-decoration: underline;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+    white-space: nowrap;
+}
+
+/* ============ Testimonials (node 2:161) ============ */
+
+.testimonials {
+    position: relative;
+    background: var(--spe-white);
+    padding: clamp(3rem, 6vw, 5rem) 0;
+    overflow: hidden;
+}
+
+.testimonials__bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.1;
+    mix-blend-mode: multiply;
+}
+
+.section-title {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    font-family: var(--font-script);
+    font-style: italic;
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 4.2rem);
+    margin: 0 auto clamp(2rem, 4vw, 3.5rem);
+    width: fit-content;
+    padding: 0.5rem 2.5rem;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+}
+
+.section-title--red {
+    background: linear-gradient(97deg, var(--spe-dark-blue) 0%, var(--spe-red) 99%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.25);
+    border-radius: 999px;
+}
+
+.testimonial-grid {
+    position: relative;
+    z-index: 1;
+    width: var(--container-width);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(1.25rem, 2.5vw, 2.5rem);
+}
+
+.testimonial-card {
+    background: linear-gradient(to bottom, var(--spe-red), var(--spe-dark-blue));
+    border-radius: 25px 25px 25px 90px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), inset 5px 5px 5px rgba(247, 224, 183, 0.5);
+    padding: clamp(1.5rem, 2vw, 2.25rem);
+    color: var(--spe-white);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.testimonial-card:nth-child(2) {
+    margin-top: -1.5rem;
+}
+
+.testimonial-card__quote {
+    font-style: italic;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    text-align: justify;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+    margin: 0;
+}
+
+.testimonial-card__footer {
+    margin-top: auto;
+    text-align: right;
+}
+
+.testimonial-card__role {
+    font-family: var(--font-script);
+    font-size: clamp(1.5rem, 2vw, 2.1rem);
+    margin: 0;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+}
+
+.testimonial-card__name {
+    font-family: var(--font-script);
+    font-style: italic;
+    font-size: clamp(1.1rem, 1.4vw, 1.4rem);
+    color: var(--spe-cream);
+    margin: 0.5rem 0 0;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+}
+
+.testimonial-card__meta {
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0.15rem 0 0;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+}
+
+/* ============ Closing banner (node 2:184) ============ */
+
+.closing-banner {
+    background: var(--spe-dark-blue);
+    color: var(--spe-white);
+    text-align: center;
+    padding: clamp(3rem, 6vw, 5rem) 1rem 0;
+}
+
+.closing-banner__inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    flex-wrap: wrap;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.closing-banner__logo {
+    max-width: 260px;
+}
+
+.closing-banner__divider {
+    width: 2px;
+    align-self: stretch;
+    background: var(--spe-white);
+    min-height: 90px;
+}
+
+.closing-banner__tagline {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: left;
+    margin: 0;
+}
+
+.closing-banner__caption {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin: 1.5rem 0 0;
+}
+
+.closing-banner .ticker {
+    margin-top: clamp(2rem, 4vw, 3rem);
+}
+
+@media (max-width: 900px) {
+    .hero__inner {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-headline {
+        text-align: left;
+    }
+
+    .hero__cta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .testimonial-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .testimonial-card:nth-child(2) {
+        margin-top: 0;
+    }
+
+    .closing-banner__inner {
+        flex-direction: column;
+    }
+
+    .closing-banner__divider {
+        width: 60%;
+        height: 2px;
+        min-height: 0;
+    }
+
+    .closing-banner__tagline {
+        text-align: center;
+    }
+}

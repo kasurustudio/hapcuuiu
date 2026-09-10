@@ -1,0 +1,202 @@
+/* ==========================================================================
+   SPE ITS SC - Design tokens & base styles
+   Sumber warna: CSS variables Figma (--spe---blue, --spe---dark-blue, dst.)
+   ========================================================================== */
+
+:root {
+    --spe-blue: #364596;
+    --spe-dark-blue: #161d45;
+    --spe-white: #fff5ec;
+    --spe-red: #a84545;
+    --spe-cream: #f7e0b7;
+
+    --font-body: 'Montserrat', sans-serif;
+    /* RL Madena / Snell Roundhand pada desain adalah font berbayar/kustom dan
+       belum bisa diambil di lingkungan ini (lihat README-ASSETS.md).
+       Playfair Display dipakai sebagai fallback italic yang senada. */
+    --font-script: 'Playfair Display', Georgia, serif;
+
+    --container-width: min(1600px, 100% - 4rem);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-body);
+    color: var(--spe-dark-blue);
+    background: var(--spe-white);
+    -webkit-font-smoothing: antialiased;
+}
+
+img {
+    max-width: 100%;
+    display: block;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ============ Header / Nav (muncul di semua halaman) ============ */
+
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255, 245, 236, 0.75);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 5px 5px 0 rgba(0, 0, 0, 0.1);
+}
+
+.site-header__inner {
+    width: var(--container-width);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1rem 0;
+}
+
+.site-nav__list {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(1rem, 2.2vw, 2.2rem);
+    margin: 0;
+    padding: 0;
+}
+
+.site-nav__link {
+    font-weight: 700;
+    font-size: clamp(0.85rem, 1vw, 1.05rem);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--spe-dark-blue);
+    padding-bottom: 0.25rem;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.site-nav__link:hover,
+.site-nav__link:focus-visible {
+    color: var(--spe-blue);
+}
+
+.site-nav__link.is-active {
+    color: var(--spe-blue);
+    border-color: var(--spe-blue);
+}
+
+.site-header__logo img {
+    width: 44px;
+    height: 44px;
+}
+
+.site-nav__toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.site-nav__toggle span {
+    display: block;
+    height: 2px;
+    background: var(--spe-dark-blue);
+}
+
+@media (max-width: 900px) {
+    .site-nav__toggle {
+        display: flex;
+    }
+
+    .site-nav__list {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        flex-direction: column;
+        background: var(--spe-white);
+        padding: 1rem 2rem;
+        box-shadow: 0 8px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .site-nav__list.is-open {
+        display: flex;
+    }
+
+    .site-nav {
+        position: relative;
+        flex: 1;
+    }
+}
+
+/* ============ Ticker / marquee banner ============ */
+
+.ticker {
+    overflow: hidden;
+    padding: 1rem 0;
+    box-shadow: 0 5px 5px 0 rgba(0, 0, 0, 0.25) inset;
+}
+
+.ticker--blue {
+    background: linear-gradient(90deg, var(--spe-dark-blue) 0%, var(--spe-blue) 30%, var(--spe-blue) 70%, var(--spe-dark-blue) 100%);
+}
+
+.ticker--red {
+    background: linear-gradient(90deg, var(--spe-dark-blue) 0%, var(--spe-red) 30%, var(--spe-red) 70%, var(--spe-dark-blue) 100%);
+}
+
+.ticker__track {
+    display: flex;
+    width: max-content;
+    animation: ticker-scroll 30s linear infinite;
+}
+
+.ticker__text {
+    flex-shrink: 0;
+    font-family: var(--font-script);
+    font-style: italic;
+    font-size: clamp(1.1rem, 2vw, 1.6rem);
+    color: var(--spe-white);
+    white-space: nowrap;
+    padding-right: 1rem;
+}
+
+@keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ticker__track {
+        animation: none;
+    }
+}

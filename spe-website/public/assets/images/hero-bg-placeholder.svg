@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" role="img" aria-label="Placeholder foto latar hero">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a2a22"/>
+      <stop offset="55%" stop-color="#6b4a3a"/>
+      <stop offset="100%" stop-color="#161d45"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#g)"/>
+  <text x="960" y="540" text-anchor="middle" font-family="sans-serif" font-size="36" fill="#fff5ec" opacity="0.6">
+    PLACEHOLDER - ganti dengan foto rig/laut hasil ekspor Figma (node 2:16)
+  </text>
+</svg>
