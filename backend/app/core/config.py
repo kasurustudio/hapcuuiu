@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.core.paths import get_default_sqlite_url
 
 
 class Settings(BaseSettings):
@@ -8,7 +11,16 @@ class Settings(BaseSettings):
 
     environment: str = "development"
 
-    database_url: str = "postgresql+psycopg://stockapp:changeme@localhost:5432/stockapp"
+    # Default None -> diisi ke SQLite lokal oleh validator di bawah kalau
+    # tidak di-override (jalur desktop). Deployment hosted (docker-compose,
+    # Render, dst) selalu set DATABASE_URL eksplisit ke Postgres.
+    database_url: str | None = None
+
+    @model_validator(mode="after")
+    def _default_to_local_sqlite(self) -> "Settings":
+        if self.database_url is None:
+            self.database_url = get_default_sqlite_url()
+        return self
 
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/1"

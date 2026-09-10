@@ -2,9 +2,9 @@
 
 Pengganti Celery Beat untuk deployment tanpa infrastruktur worker 24/7
 (mis. Render free tier, yang tidak mendukung background worker gratis).
-Memanggil fungsi task yang PERSIS SAMA dengan yang dipakai Celery
-(`app.workers.tasks.ingest`), supaya tidak ada logika terduplikasi antara
-jalur Celery dan jalur cron GitHub Actions.
+Memanggil fungsi logic yang PERSIS SAMA dengan yang dipakai Celery maupun
+scheduler desktop (`app.services.ingest`), supaya tidak ada logika
+terduplikasi antar jalur.
 
 Dipanggil dari GitHub Actions sebagai:
     python -m scripts.run_ingest sync_instruments
@@ -16,11 +16,11 @@ from __future__ import annotations
 import sys
 
 from app.core.database import SessionLocal
-from app.workers.tasks.ingest import _ingest_daily_ohlcv, _sync_instruments
+from app.services.ingest import ingest_daily_ohlcv, sync_instruments
 
 TASKS = {
-    "sync_instruments": _sync_instruments,
-    "ingest_daily_ohlcv": _ingest_daily_ohlcv,
+    "sync_instruments": sync_instruments,
+    "ingest_daily_ohlcv": ingest_daily_ohlcv,
 }
 
 

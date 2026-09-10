@@ -76,7 +76,7 @@ function MoversList({ signals }: { signals: ReturnType<typeof listSignalsForMode
     <ul className="space-y-2">
       {signals.map((s) => (
         <li key={s.symbol} className="flex items-center justify-between text-sm">
-          <Link href={`/analysis/${s.symbol}`} className="font-medium hover:underline">
+          <Link href={`/analysis?symbol=${s.symbol}`} className="font-medium hover:underline">
             {s.symbol}
           </Link>
           <div className="flex items-center gap-2">

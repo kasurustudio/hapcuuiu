@@ -1,0 +1,83 @@
+name: Build macOS Desktop App
+
+# Membangun aplikasi desktop (Tauri, lihat desktop/) jadi .dmg siap pakai,
+# di runner macos-latest (gratis untuk repo publik) — dijalankan di sini
+# karena toolchain Apple (Xcode/codesign) hanya tersedia di macOS asli,
+# tidak bisa dibuild dari sandbox Linux manapun.
+#
+# Urutan build (harus persis, lihat desktop/src-tauri/binaries/README.md
+# untuk versi manual di Mac sendiri):
+#   1. PyInstaller bundle backend Python jadi satu binary (sidecar)
+#   2. Rename binary sesuai target triple Rust (konvensi sidecar Tauri)
+#   3. Next.js static export jadi frontend/out
+#   4. tauri build merangkai semuanya jadi .dmg
+on:
+  push:
+    branches:
+      - claude/trading-platform-requirements-v79fkq
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "desktop/**"
+      - ".github/workflows/build-macos.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements-desktop.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build sidecar backend (PyInstaller)
+        working-directory: backend
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements-desktop.txt
+          pyinstaller desktop.spec --noconfirm
+
+      - name: Rename sidecar sesuai target triple Tauri
+        run: |
+          TRIPLE=$(rustc -Vv | grep host | cut -d' ' -f2)
+          echo "Target triple: $TRIPLE"
+          mkdir -p desktop/src-tauri/binaries
+          cp backend/dist/stockapp-backend/stockapp-backend \
+             "desktop/src-tauri/binaries/stockapp-backend-$TRIPLE"
+          chmod +x "desktop/src-tauri/binaries/stockapp-backend-$TRIPLE"
+
+      - name: Install dependencies frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (static export)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install dependencies desktop (Tauri CLI)
+        working-directory: desktop
+        run: npm install
+
+      - name: Build aplikasi desktop (.dmg)
+        working-directory: desktop
+        run: npm run build
+
+      - name: Upload .dmg sebagai artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-analysis-platform-macos
+          path: desktop/src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error

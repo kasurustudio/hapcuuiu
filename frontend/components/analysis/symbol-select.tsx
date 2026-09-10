@@ -9,7 +9,7 @@ export function SymbolSelect({ symbol }: { symbol: string }) {
   return (
     <select
       value={symbol}
-      onChange={(e) => router.push(`/analysis/${e.target.value}`)}
+      onChange={(e) => router.push(`/analysis?symbol=${e.target.value}`)}
       className="rounded-md border border-white/10 bg-neutral-900 px-2.5 py-1.5 text-sm text-neutral-200"
     >
       {INSTRUMENTS.map((i) => (

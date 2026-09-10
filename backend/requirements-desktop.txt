@@ -1,0 +1,10 @@
+# Dependency tambahan HANYA untuk build sidecar desktop (PyInstaller).
+# Tidak dipakai runtime hosted (Docker/Render) — lihat requirements.txt.
+-r requirements.txt
+pyinstaller==6.11.1
+pyinstaller-hooks-contrib==2026.7
+# Dibutuhkan supaya rthook pkg_resources PyInstaller tidak crash
+# (jaraco.context/jaraco.text menarik backports.tarfile secara tidak
+# langsung lewat pkg_resources, yang ikut ter-trigger karena APScheduler
+# memakainya untuk entry-point discovery).
+backports.tarfile==1.2.0

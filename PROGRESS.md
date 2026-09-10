@@ -1,5 +1,146 @@
 # Progress
 
+## Addendum desktop app (2026-09-10): pivot ke aplikasi desktop (Tauri), drop hosting
+
+User bertanya apakah logic bisa dibundel jadi aplikasi macOS/desktop supaya
+tidak perlu hosting. Setelah dikonfirmasi feasible, user memutuskan dua hal
+eksplisit: **full pindah ke desktop, drop versi web** (karena dipakai
+sendiri), dan wrapper **Tauri** (bukan Electron, footprint lebih kecil).
+
+**Penting**: sesi ini jalan di sandbox Linux, jadi `.dmg`/`.app` macOS asli
+TIDAK dihasilkan langsung di sini — itu butuh toolchain Apple (Xcode/
+codesign) yang cuma ada di macOS asli. Yang disiapkan: seluruh source code
++ workflow GitHub Actions yang build otomatis di runner `macos-latest`
+(gratis untuk repo publik), atau bisa dijalankan manual oleh user di Mac
+sendiri kapan saja (lihat `desktop/src-tauri/binaries/README.md`).
+
+### Apa yang selesai
+
+1. **Portabilitas database (Postgres → SQLite)** — kolom `JSONB`/`ARRAY`
+   (khusus Postgres) di `indicator_snapshot.py`, `signal.py`, `alert.py`
+   diganti tipe generik SQLAlchemy `JSON` (jalan di kedua dialect).
+   `server_default="now()"` (raw SQL Postgres) diganti `func.now()`
+   (dialect-aware) di `signal.py`/`user.py`. Jalur hosted (Postgres +
+   Alembic) tidak berubah — hanya jadi kompatibel tambahan dengan SQLite.
+2. **Config default ke SQLite lokal** (`app/core/paths.py` baru) —
+   `get_app_data_dir()` resolve lokasi data app per-OS sesuai konvensi
+   (macOS: `~/Library/Application Support/`, Linux: XDG_DATA_HOME, Windows:
+   `%APPDATA%`). `DATABASE_URL` di `config.py` sekarang default `None` lalu
+   diisi otomatis ke SQLite di folder itu lewat `model_validator` — kalau
+   `DATABASE_URL` di-set eksplisit (jalur hosted/Render), tidak berubah.
+   `database.py` menambah `init_db_schema()` yang jalan `create_all()` HANYA
+   saat SQLite (jalur hosted tetap wajib lewat Alembic).
+3. **Scheduler lokal pengganti Celery Beat** (`app/workers/local_scheduler.py`
+   baru, pakai `APScheduler`) — job `sync_instruments` (06:00 WIB) dan
+   `ingest_daily_ohlcv` (17:30 WIB hari bursa) jalan in-process, tidak butuh
+   Redis/worker terpisah. Diaktifkan otomatis di `app/main.py` lifespan
+   HANYA saat mode SQLite; jalur hosted tetap pakai GitHub Actions cron
+   yang sudah ada (`ingest-daily-ohlcv.yml`/`sync-instruments.yml`).
+4. **Refactor pemisahan logic dari Celery** (`app/services/ingest.py` baru)
+   — `sync_instruments`/`ingest_daily_ohlcv`/`_upsert_ohlcv` dipindah ke
+   modul tanpa dependency Celery sama sekali (termasuk upsert dialect-aware
+   SQLite/Postgres). `app/workers/tasks/ingest.py` jadi wrapper tipis yang
+   cuma nambah decorator `@celery_app.task`. **Alasan arsitektural**: bukan
+   cuma menghindari duplikasi kode, tapi PyInstaller (bundler sidecar
+   desktop) melakukan static analysis import — import Celery memicu
+   `kombu.utils.imports.symbol_by_name` yang dynamic-lookup modul
+   `celery.fixups.django`, tidak kelihatan oleh PyInstaller dan bikin
+   binary crash saat runtime. Dengan pemisahan ini, dependency graph
+   sidecar desktop tidak pernah menyentuh Celery sama sekali.
+5. **Bundle backend Python jadi sidecar binary** (PyInstaller) —
+   `backend/desktop_entrypoint.py` (pakai `from app.main import app` +
+   `uvicorn.run(app, ...)` dengan objek bukan string, supaya semua import
+   bisa dilacak statis oleh PyInstaller), `backend/desktop.spec` (hidden
+   imports untuk uvicorn/apscheduler/app + beberapa modul dynamic-import
+   seperti `passlib.handlers.argon2`, `email_validator`), dan
+   `backend/requirements-desktop.txt` terpisah dari `requirements.txt`
+   hosted (tidak mempengaruhi image Docker Render). Diverifikasi end-to-end
+   lokal: binary/entrypoint jalan penuh — startup → auto-create schema
+   SQLite → scheduler APScheduler start dengan job & timezone benar →
+   `/healthz` 200 → shutdown bersih dengan scheduler ikut berhenti.
+6. **Frontend jadi static export** — `next.config.ts` ditambah
+   `output: "export"` (wajib untuk Tauri, webview-nya cuma load file
+   statis, tidak ada runtime Node/SSR). Konsekuensi: route dinamis
+   `/analysis/[symbol]` diganti jadi `/analysis?symbol=...` (query param
+   via `useSearchParams`), karena static export tidak generate halaman
+   dinamis tanpa `generateStaticParams` lengkap semua kemungkinan symbol.
+   Semua link internal (dashboard, watchlist, portfolio, screener) ikut
+   diupdate. Diverifikasi: `npm run build` sukses, hasil `frontend/out/`
+   berisi file `.html` flat (`analysis.html`, dst) sesuai ekspektasi Tauri
+   `frontendDist`.
+7. **Scaffold shell Tauri v2** (`desktop/`) — `Cargo.toml`/`tauri.conf.json`
+   (window 1440x900, bundle target `dmg`+`app`, ikon dibuat manual dengan
+   desain candlestick sederhana), `src-tauri/src/lib.rs` mengelola siklus
+   hidup sidecar backend: spawn via `tauri-plugin-shell`, alirkan
+   stdout/stderr ke konsol untuk debug, dan **kill eksplisit saat app
+   exit** (`RunEvent::Exit`) supaya proses backend tidak jadi orphan
+   setelah window ditutup. `capabilities/default.json` grant
+   `shell:allow-execute` scoped khusus ke sidecar `stockapp-backend`.
+8. **GitHub Actions `build-macos.yml`** — jalan di `macos-latest`
+   (workflow_dispatch + push ke branch ini yang menyentuh
+   `backend|frontend|desktop`): build sidecar PyInstaller → rename sesuai
+   target triple Rust (`rustc -Vv`) → build frontend static export →
+   `npm run tauri build` → upload `.dmg` sebagai artifact workflow. Ini
+   satu-satunya jalur yang benar-benar mengkompilasi & memvalidasi kode
+   Rust/Tauri (sandbox Linux sesi ini tidak bisa cross-compile untuk
+   macOS, dan `libwebkit2gtk` untuk sanity-check native Linux gagal
+   diinstal karena mirror `apt` Ubuntu di sandbox rusak/404 untuk banyak
+   dependency transitif — bukan masalah kode, jadi dilewati).
+
+### Verifikasi
+
+- **151 test lolos** (backend, tidak berubah dari sebelumnya — perubahan
+  DB/config/scheduler tidak memecah test hosted yang sudah ada).
+- Lifecycle sidecar diverifikasi manual dua kali (setelah dua bug packaging
+  ditemukan, lihat bawah): jalankan `desktop_entrypoint.py` langsung
+  (bukan lewat PyInstaller) DAN lewat binary hasil `pyinstaller
+  desktop.spec` — keduanya startup bersih, `/healthz` 200, shutdown bersih.
+- Frontend: `npm run build` bersih (lint+typecheck+export), 5 halaman
+  ter-generate sebagai static HTML.
+- File YAML `build-macos.yml` divalidasi `yaml.safe_load`.
+
+### Keputusan teknis & alasan
+
+- **Jalur hosted (Render/Postgres/Alembic/Celery) tidak dihapus**, meski
+  user memilih "drop versi web" untuk pemakaian sendiri — kode dibiarkan
+  tetap ada dan tetap lolos test, karena menghapusnya berisiko lebih besar
+  daripada manfaatnya (gampang diaktifkan lagi kalau suatu saat butuh
+  akses multi-device/multi-user), dan pemisahan sudah bersih lewat flag
+  `is_sqlite` tanpa duplikasi logic.
+- **SQLite dipilih (bukan Postgres embedded/DuckDB)** — satu file, tanpa
+  proses server terpisah, didukung native oleh SQLAlchemy, cukup untuk
+  beban single-user desktop app.
+- **APScheduler `BackgroundScheduler` in-process** (bukan Celery+Redis
+  lokal) — jauh lebih ringan untuk single-user desktop, tidak butuh
+  Redis/broker terpisah yang harus di-manage siklus hidupnya oleh Tauri.
+- **Wiring frontend ke API asli (menggantikan `lib/mock-data.ts`) SENGAJA
+  belum dikerjakan di addendum ini** — di luar scope permintaan user
+  ("bisa dibundel jadi desktop app?"), dan sudah didokumentasikan sebagai
+  langkah terpisah sejak addendum UI prototype. Prasyarat packaging
+  desktop (DB/scheduler/sidecar/Tauri) yang jadi fokus di sini.
+
+### Ditunda / butuh tindak lanjut
+
+- **`.dmg` asli belum pernah dihasilkan/dijalankan** di sesi ini (sandbox
+  Linux tidak punya toolchain Apple) — perlu dipicu sekali lewat
+  `workflow_dispatch` pada `build-macos.yml` di GitHub, atau build manual
+  di Mac user sendiri (`desktop/src-tauri/binaries/README.md`), untuk
+  benar-benar memvalidasi hasil install/run di macOS nyata (termasuk
+  apakah perlu notarization Apple untuk distribusi di luar mesin sendiri
+  — belum dikonfigurasi, `.dmg` unsigned kemungkinan butuh
+  klik-kanan-buka/allow di Gatekeeper pertama kali).
+- **Auto-update aplikasi desktop belum ada** — Tauri punya plugin updater
+  bawaan, belum diintegrasikan; untuk saat ini update = download `.dmg`
+  baru dari artifact GitHub Actions tiap ada perubahan.
+- **Wiring frontend ke backend asli** (lihat keputusan teknis di atas)
+  masih pending, terpisah dari packaging desktop ini.
+- **Sanity-check compile Rust/Tauri secara native di Linux TIDAK berhasil
+  dilakukan** di sandbox ini (`libwebkit2gtk-4.1-dev` dan dependency
+  transitifnya gagal `apt-get install` karena mirror Ubuntu 404 untuk
+  banyak paket tidak terkait) — bukan blocker karena target build
+  sesungguhnya adalah `build-macos.yml`, tapi berarti validasi pertama
+  kode Rust ini baru terjadi saat workflow itu dijalankan.
+
 ## Fase 2 — Mesin Analisis ✅ Selesai (2026-09-04)
 
 Sesuai roadmap SPEC.md Bagian 17. Dipicu oleh permintaan user untuk mulai

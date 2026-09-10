@@ -37,3 +37,13 @@ npm-debug.log*
 
 # Docker volumes (local)
 pgdata/
+
+# Desktop (Tauri) build artifacts
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/src-tauri/binaries/*
+!desktop/src-tauri/binaries/README.md
+
+# PyInstaller build artifacts (backend desktop sidecar)
+backend/build/
+backend/dist/

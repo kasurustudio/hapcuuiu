@@ -44,7 +44,7 @@ export function WatchlistView() {
                 return (
                   <tr key={item.symbol} className="border-b border-white/5 last:border-0 hover:bg-white/5">
                     <td className="py-2.5 pr-4">
-                      <Link href={`/analysis/${item.symbol}`} className="font-medium hover:underline">
+                      <Link href={`/analysis?symbol=${item.symbol}`} className="font-medium hover:underline">
                         {item.symbol}
                       </Link>
                       <div className="text-xs text-neutral-500">{item.name}</div>

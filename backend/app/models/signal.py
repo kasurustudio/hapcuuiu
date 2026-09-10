@@ -1,8 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Numeric, String
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Index, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -34,9 +33,9 @@ class Signal(Base):
     atr_value: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
 
     valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    rationale: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    rationale: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     generated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default="now()", nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

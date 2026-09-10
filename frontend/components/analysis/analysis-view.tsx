@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { generateCandles, getSignal } from "@/lib/mock-data";
+import { useSearchParams } from "next/navigation";
+import { INSTRUMENTS, findInstrument, generateCandles, getSignal } from "@/lib/mock-data";
 import { computeRSI } from "@/lib/indicators";
 import { useModeStore } from "@/lib/store";
 import { formatPct, formatRupiah } from "@/lib/format";
@@ -13,8 +14,13 @@ import { TradingPlanCard } from "@/components/analysis/trading-plan-card";
 import { DetailTabs } from "@/components/analysis/detail-tabs";
 import { SymbolSelect } from "@/components/analysis/symbol-select";
 
-export function AnalysisView({ symbol }: { symbol: string }) {
+export function AnalysisView() {
   const mode = useModeStore((s) => s.mode);
+  const searchParams = useSearchParams();
+
+  const requestedSymbol = searchParams.get("symbol");
+  const instrument = (requestedSymbol && findInstrument(requestedSymbol)) || INSTRUMENTS[0];
+  const symbol = instrument.symbol;
 
   const signal = useMemo(() => getSignal(symbol, mode), [symbol, mode]);
   const candles = useMemo(() => generateCandles(symbol, 200), [symbol]);

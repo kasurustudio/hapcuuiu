@@ -1,6 +1,6 @@
 from app.models.instrument import Instrument
+from app.services.ingest import sync_instruments as _sync_instruments
 from app.services.market_data.lq45_seed import LQ45_SEED
-from app.workers.tasks.ingest import _sync_instruments
 
 
 def test_sync_instruments_creates_all_seed_symbols(db_session):

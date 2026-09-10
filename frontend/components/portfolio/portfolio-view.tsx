@@ -89,7 +89,7 @@ export function PortfolioView() {
               {rows.map((r) => (
                 <tr key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
                   <td className="py-2.5 pr-4">
-                    <Link href={`/analysis/${r.symbol}`} className="font-medium hover:underline">
+                    <Link href={`/analysis?symbol=${r.symbol}`} className="font-medium hover:underline">
                       {r.symbol}
                     </Link>
                     <div className="text-xs text-neutral-500">{r.name}</div>

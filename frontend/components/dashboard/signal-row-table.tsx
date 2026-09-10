@@ -21,7 +21,7 @@ export function SignalRowTable({ signals }: { signals: Signal[] }) {
           {signals.map((s) => (
             <tr key={s.symbol} className="border-b border-white/5 last:border-0 hover:bg-white/5">
               <td className="py-2.5 pr-4">
-                <Link href={`/analysis/${s.symbol}`} className="font-medium hover:underline">
+                <Link href={`/analysis?symbol=${s.symbol}`} className="font-medium hover:underline">
                   {s.symbol}
                 </Link>
                 <div className="text-xs text-neutral-500">{s.sector}</div>

@@ -1,7 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ARRAY, BigInteger, Boolean, DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -16,7 +15,8 @@ class Alert(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     instrument_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("instruments.id"), nullable=False)
     alert_type: Mapped[str] = mapped_column(String(30), nullable=False)
-    condition: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    channels: Mapped[list[str]] = mapped_column(ARRAY(String(50)), nullable=False)
+    condition: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # JSON (bukan ARRAY Postgres) supaya portabel ke SQLite (desktop build).
+    channels: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
