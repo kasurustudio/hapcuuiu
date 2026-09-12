@@ -1,12 +1,12 @@
 <!-- PLACEHOLDER: bukan logo resmi SPE International. Ganti dengan aset SVG asli
      hasil ekspor Figma (node 2:185 "New logo SPE ITS SC 1"). -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" role="img" aria-label="Placeholder logo SPE International">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 190" role="img" aria-label="Placeholder logo SPE International">
   <circle cx="110" cy="70" r="66" fill="#fff5ec"/>
   <text x="110" y="80" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="34" fill="#161d45">SPE</text>
-  <text x="110" y="128" text-anchor="middle" font-family="sans-serif" font-weight="600" font-size="15" fill="#fff5ec">
+  <text x="110" y="156" text-anchor="middle" font-family="sans-serif" font-weight="600" font-size="15" fill="#fff5ec">
     Institut Teknologi
   </text>
-  <text x="110" y="148" text-anchor="middle" font-family="sans-serif" font-weight="600" font-size="15" fill="#fff5ec">
+  <text x="110" y="176" text-anchor="middle" font-family="sans-serif" font-weight="600" font-size="15" fill="#fff5ec">
     Sepuluh Nopember (ITS)
   </text>
 </svg>
