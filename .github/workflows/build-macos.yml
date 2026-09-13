@@ -58,6 +58,13 @@ jobs:
           cp backend/dist/stockapp-backend/stockapp-backend \
              "desktop/src-tauri/binaries/stockapp-backend-$TRIPLE"
           chmod +x "desktop/src-tauri/binaries/stockapp-backend-$TRIPLE"
+          # Ad-hoc sign sidecar (tanpa Apple Developer ID) — tanpa ini,
+          # binary PyInstaller (berisi banyak dylib numpy/pandas) bisa bikin
+          # macOS Gatekeeper menganggap keseluruhan .app "damaged" meski
+          # .app-nya sendiri sudah ditandatangani, karena ada resource
+          # tersegel yang tidak valid.
+          codesign --force -s - --timestamp -v \
+            "desktop/src-tauri/binaries/stockapp-backend-$TRIPLE"
 
       - name: Install dependencies frontend
         working-directory: frontend

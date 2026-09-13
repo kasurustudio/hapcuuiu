@@ -128,12 +128,29 @@ sendiri kapan saja (lihat `desktop/src-tauri/binaries/README.md`).
 
 ### Ditunda / butuh tindak lanjut
 
-- **`.dmg` sudah berhasil dibuild CI, tapi belum pernah diinstall/dijalankan
-  di mesin macOS fisik** — perlu didownload dari artifact workflow run
-  (lihat link di atas) dan dicoba oleh user sendiri untuk memvalidasi
-  install/run di macOS nyata. Notarization Apple untuk distribusi di luar
-  mesin sendiri belum dikonfigurasi — `.dmg` unsigned kemungkinan butuh
-  klik-kanan-buka/allow di Gatekeeper pertama kali.
+- **Bug ditemukan saat instalasi nyata di macOS user**: `.dmg` build
+  pertama (unsigned sama sekali, tanpa ad-hoc signature) ditolak Gatekeeper
+  dengan pesan **"is damaged and can't be opened"** — bukan cuma prompt
+  "unidentified developer" yang bisa di-bypass klik-kanan-buka. Ini
+  perilaku Gatekeeper macOS modern (Sonoma/Sequoia) untuk aplikasi yang
+  sama sekali tidak bertanda tangan, terutama di Apple Silicon: sebagian
+  resource dalam bundle (di sini kemungkinan besar binary sidecar
+  PyInstaller yang membawa banyak dylib numpy/pandas) membuat validasi
+  code-sign bundle gagal total, bukan cuma "belum terverifikasi". `xattr
+  -cr` (hapus quarantine flag) saja **tidak cukup** memperbaiki ini karena
+  akar masalahnya bukan quarantine, tapi ketiadaan signature yang valid.
+  **Fix**: ditambahkan `"signingIdentity": "-"` di
+  `desktop/src-tauri/tauri.conf.json` (bundle.macOS) supaya Tauri
+  ad-hoc-sign `.app` hasil build, plus langkah eksplisit
+  `codesign --force -s - --timestamp -v` pada binary sidecar sebelum
+  di-bundle (di `build-macos.yml`) sebagai lapisan tambahan. Ad-hoc
+  signing tidak butuh akun Apple Developer ($99/tahun) — cukup untuk
+  distribusi ke diri sendiri, tapi tetap mengharuskan sekali `xattr -cr`
+  atau klik-kanan-buka pertama kali karena file tetap quarantined saat
+  didownload browser (ini normal/diharapkan, beda dari bug "damaged").
+- **Belum ada konfirmasi ulang bahwa fix ini benar-benar menyelesaikan
+  masalah** di mesin macOS user — build baru sudah dipicu, tapi instalasi
+  nyata belum diuji ulang setelah fix.
 - **Auto-update aplikasi desktop belum ada** — Tauri punya plugin updater
   bawaan, belum diintegrasikan; untuk saat ini update = download `.dmg`
   baru dari artifact GitHub Actions tiap ada perubahan.
