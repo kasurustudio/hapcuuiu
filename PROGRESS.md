@@ -1,5 +1,138 @@
 # Progress
 
+## Addendum wiring data real (2026-09-15): Dashboard & Analysis konek ke backend asli
+
+Setelah aplikasi desktop berhasil di-install & dijalankan user (lihat addendum
+di bawah untuk perbaikan bug Gatekeeper), user minta platform dikoneksikan ke
+data real IHSG/LQ45 supaya analisis sesuai kondisi pasar sungguhan — sebelum
+ini seluruh frontend 100% pakai `lib/mock-data.ts`.
+
+**Keputusan scope** (dikonfirmasi eksplisit ke user karena Signal Engine/Fase
+3 belum ada): wiring data real dulu untuk Dashboard & Analysis (chart,
+indikator, level S/R, candlestick pattern) — rekomendasi trading (entry
+zone/SL/TP/position sizing) dan skor Screener TETAP placeholder jujur
+("Signal Engine belum tersedia — Fase 3"), BUKAN diisi angka fabrikasi dari
+harga real (itu akan terlihat seperti rekomendasi sungguhan padahal bukan,
+melanggar CLAUDE.md soal klaim prediktif). Watchlist & Portfolio juga tetap
+mock sepenuhnya — backend belum punya tabel/API untuk keduanya sama sekali
+(bukan pilihan, tapi keterbatasan yang ada).
+
+### Apa yang selesai
+
+**Backend:**
+1. **Bootstrap otomatis saat database kosong** (`app/services/bootstrap.py`
+   baru) — `needs_bootstrap()`/`run_bootstrap_sync()` dipanggil di
+   `app/main.py` lifespan (jalur SQLite saja) lewat background thread
+   supaya tidak memblokir startup FastAPI (ingest ~48 simbol bisa makan
+   waktu beberapa menit). Status (`idle`/`running`/`done`/`error`) disimpan
+   in-memory (`BootstrapState`, thread-safe), kegagalan jaringan ditangkap
+   dan dicatat sebagai `error` — TIDAK melempar exception yang bisa
+   men-crash proses utama.
+2. **`GET /api/v1/system/status`** (`app/api/v1/system.py` baru) —
+   mengembalikan `{database, instrument_count, bootstrap: {status, detail}}`,
+   dipoll frontend untuk menampilkan banner status ("menghubungkan...",
+   "sedang sync data awal...", atau pesan error jaringan).
+3. **`GET /api/v1/instruments/summary`** — harga terbaru + `change_pct`
+   dihitung dari 2 bar OHLCV harian terakhir per instrumen (N+1 query
+   sengaja dipakai apa adanya, cuma ~48 instrumen lokal). Route didaftarkan
+   SEBELUM `/{symbol}` supaya path "/summary" tidak ketangkap jadi
+   `symbol="summary"`.
+4. **CORS**: `cors_origins` default ditambah `tauri://localhost` (macOS/
+   Linux) & `http://tauri.localhost` (Windows) — origin webview Tauri,
+   berbeda dari `http://localhost:3000` yang cuma dipakai `next dev`.
+5. Semua fungsi baru (`bootstrap.py`, endpoint `/system/status` &
+   `/instruments/summary`) punya unit test — **163 test lolos** (naik dari
+   151), termasuk test kegagalan bootstrap yang tidak boleh melempar
+   exception.
+
+**Frontend:**
+6. **`lib/api.ts`** (baru) — client fetch ke backend lokal, base URL
+   di-hardcode `http://127.0.0.1:8756` (port sidecar tetap, lihat
+   `desktop_entrypoint.py`), override lewat `NEXT_PUBLIC_API_BASE_URL`
+   untuk `next dev` manual. Tipe respons mengikuti schema API asli
+   (`InstrumentSummary`, `OhlcvBar`, `IndicatorSnapshot`, dst) — BUKAN tipe
+   `Signal` mock, supaya tidak ada field entry/SL/TP palsu yang
+   "kebetulan" terisi.
+7. **`lib/use-backend-ready.ts`** & **`lib/use-system-status.ts`** (baru) —
+   poll `/healthz` sampai sidecar Python siap (mengatasi race condition:
+   Tauri render frontend statis instan, sedangkan proses Python butuh
+   beberapa detik untuk mulai listen), lalu poll `/system/status` selama
+   bootstrap masih `running`.
+8. **`components/ui/data-status-banner.tsx`** (baru) — banner status
+   dipakai bersama Dashboard & Analysis (menghubungkan.../sync awal
+   berjalan/gagal jaringan).
+9. **Dashboard** (`dashboard-view.tsx`) — Top Gainer/Loser dari
+   `/instruments/summary` real; kartu "IHSG" jadi placeholder (indeks
+   komposit di luar cakupan 48 LQ45 yang di-ingest); kartu sinyal diganti
+   "Instrumen Terpantau" (hitung real); tabel "Sinyal Terbaru" diganti
+   card placeholder Signal Engine. `signal-row-table.tsx` dihapus (jadi
+   tidak terpakai). Kartu "Watchlist Aktif" tetap pakai mock (tidak ada
+   API watchlist).
+10. **Analysis** (`analysis-view.tsx`) — fetch instrumen/OHLCV/indikator/
+    level/pattern real per simbol, masing-masing endpoint ditangani
+    independen (satu gagal 422 INSUFFICIENT_DATA tidak menggagalkan yang
+    lain). `PriceChart` diubah: prop `entryZone`/`stopLoss`/`targets` jadi
+    optional (undefined kalau Signal Engine belum tersedia, bukan overlay
+    kosong/error). RSI dihitung client-side dari candle real (`computeRSI`,
+    fungsi yang sama dipakai mock sebelumnya, sekarang dapat data
+    sungguhan). `TradingPlanCard` diganti placeholder jujur. `DetailTabs`
+    ditulis ulang total: tab Teknikal menampilkan nilai indikator mentah
+    (bukan skor komposit 0-100 yang fabrikasi), tab Level & Pattern
+    sekarang REAL (sebelumnya "Pattern" masih placeholder di addendum UI
+    prototype), tab Ringkasan/Fundamental/Riwayat tetap "belum tersedia".
+    `SymbolSelect` diubah fetch daftar 48 instrumen real (bukan ~8 simbol
+    mock) dari `/instruments/summary`.
+11. Bug ditemukan & diperbaiki saat verifikasi E2E (lihat bawah): panel
+    chart macet permanen di "Memuat data harga…" untuk simbol yang memang
+    belum ada OHLCV — endpoint `/ohlcv` mengembalikan `200 []` (bukan
+    error) untuk data kosong, jadi butuh flag `ohlcvLoaded` terpisah dari
+    "belum ada data" untuk membedakan sedang-loading vs sudah-selesai-tapi-
+    kosong.
+
+### Verifikasi
+
+- **Backend**: 163 test lolos (`pytest app/tests`).
+- **Frontend**: `npm run build` bersih (lint + typecheck + static export).
+- **End-to-end nyata** (bukan cuma unit test): backend dijalankan sungguhan
+  (`desktop_entrypoint.py`, SQLite baru) + `frontend/out` diserve statis
+  (`serve`, supaya clean-URL routing sama seperti cara Tauri menyajikan
+  static export — `python -m http.server` TIDAK merepresentasikan ini
+  dengan benar, sempat menghasilkan 404 palsu di test awal), diverifikasi
+  Playwright headless Chromium sungguhan ke 6 halaman: `/` sukses fetch
+  `/instruments/summary` real (48 instrumen ter-sync), `/analysis` fetch
+  instrumen/OHLCV/indikator/level/pattern real dengan graceful degradation
+  (`INSUFFICIENT_DATA` 422 karena sandbox ini tidak punya akses internet ke
+  Yahoo Finance → 0 bar OHLCV → pesan "Data historis belum cukup", bukan
+  crash/blank), Screener/Watchlist/Portfolio tidak berubah (mock, 0 error).
+  0 console/page error kecuali 422 yang memang disengaja (log jaringan
+  browser normal untuk response non-2xx yang sudah ditangani `try/catch`).
+- **Bootstrap lifecycle** diverifikasi manual: `sync_instruments` berhasil
+  (48 instrumen, tidak butuh jaringan), `ingest_daily_ohlcv` gagal per-
+  simbol karena sandbox tidak ada akses ke Yahoo Finance (`bootstrap.status`
+  jadi `error` dengan pesan jelas, TIDAK meng-crash server) — perilaku yang
+  benar untuk kondisi tanpa internet; di mesin user dengan internet asli,
+  ini akan `status: done` dan mengisi harga sungguhan.
+
+### Ditunda / butuh tindak lanjut
+
+- **Belum diverifikasi dengan data internet sungguhan** — sandbox sesi ini
+  tidak punya akses ke Yahoo Finance, jadi alur "bootstrap sukses → harga
+  benar-benar terisi di UI" cuma diverifikasi secara struktural (graceful
+  degradation saat gagal), bukan hasil akhir dengan angka riil. User perlu
+  membuka aplikasi desktop sekali dengan internet aktif untuk memvalidasi
+  ini end-to-end.
+- **Signal Engine (Fase 3)** — rekomendasi entry/SL/TP, skor Screener,
+  gate R:R minimum — belum dibangun, sengaja di luar scope addendum ini
+  (lihat "Keputusan scope" di atas). Halaman Analysis/Dashboard sudah
+  siap menampilkannya begitu tersedia (placeholder sudah di tempat yang
+  tepat).
+- **Watchlist & Portfolio backend** — belum ada tabel/API sama sekali
+  (Watchlist) atau API CRUD (Portfolio, tabelnya sudah ada dari Fase 1).
+  Kedua halaman ini tetap 100% mock.
+- **`/instruments/summary` N+1 query** — cukup untuk ~48 instrumen lokal
+  desktop single-user, tapi bukan pola yang scale kalau nanti universe
+  instrumen bertambah signifikan.
+
 ## Addendum desktop app (2026-09-10): pivot ke aplikasi desktop (Tauri), drop hosting
 
 User bertanya apakah logic bisa dibundel jadi aplikasi macOS/desktop supaya

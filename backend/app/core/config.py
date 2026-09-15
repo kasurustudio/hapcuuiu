@@ -33,7 +33,16 @@ class Settings(BaseSettings):
 
     market_data_provider_idx: str = "yfinance"
 
-    cors_origins: str = "http://localhost:3000"
+    # "tauri://localhost" (macOS/Linux) & "http://tauri.localhost" (Windows)
+    # adalah origin default webview Tauri untuk build desktop — frontend
+    # static export dilayani dari situ, bukan http://localhost:3000 (itu
+    # cuma dipakai saat `next dev` atau server statis manual utk testing).
+    # 127.0.0.1 disertakan juga karena beda origin dari "localhost" menurut
+    # spesifikasi CORS meski sama-sama loopback.
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "tauri://localhost,http://tauri.localhost"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

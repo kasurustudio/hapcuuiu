@@ -7,7 +7,7 @@ from app.core.deps import DbSession
 from app.models.instrument import Instrument
 from app.models.ohlcv import OHLCV
 from app.schemas.analysis import PatternOut, PriceLevelOut
-from app.schemas.instrument import InstrumentOut, OHLCVBarOut
+from app.schemas.instrument import InstrumentOut, InstrumentSummaryOut, OHLCVBarOut
 from app.services.indicators.snapshot import build_indicator_snapshot
 from app.services.levels.detector import detect_price_levels
 from app.services.patterns.candlestick import detect_candlestick_patterns
@@ -40,6 +40,46 @@ def list_instruments(
     if exchange:
         query = query.filter(Instrument.exchange == exchange)
     return query.order_by(Instrument.symbol).all()
+
+
+@router.get("/summary", response_model=list[InstrumentSummaryOut])
+def list_instruments_summary(db: DbSession, timeframe: str = Query(default="1d")) -> list[dict]:
+    """Harga terbaru + perubahan harian per instrumen (Dashboard top
+    gainer/loser). Didaftarkan SEBELUM route `/{symbol}` supaya path
+    "/summary" tidak ketangkap sebagai symbol="summary".
+
+    N+1 query per instrumen (2 bar terakhir) sengaja dipakai apa adanya —
+    hanya ~48 instrumen LQ45 lokal, cukup cepat untuk desktop single-user;
+    tidak perlu window function lintas-dialect SQLite/Postgres untuk skala
+    sekecil ini.
+    """
+    instruments = db.query(Instrument).order_by(Instrument.symbol).all()
+    results: list[dict] = []
+    for instrument in instruments:
+        bars = (
+            db.query(OHLCV)
+            .filter(OHLCV.instrument_id == instrument.id, OHLCV.timeframe == timeframe)
+            .order_by(OHLCV.ts.desc())
+            .limit(2)
+            .all()
+        )
+        last_price = bars[0].close if bars else None
+        prev_close = bars[1].close if len(bars) > 1 else None
+        change_pct = None
+        if last_price is not None and prev_close:
+            change_pct = float((last_price - prev_close) / prev_close * 100)
+        results.append(
+            {
+                "symbol": instrument.symbol,
+                "name": instrument.name,
+                "sector": instrument.sector,
+                "last_price": last_price,
+                "prev_close": prev_close,
+                "change_pct": change_pct,
+                "last_bar_at": bars[0].ts if bars else None,
+            }
+        )
+    return results
 
 
 def _get_instrument_or_404(db: DbSession, symbol: str) -> Instrument:

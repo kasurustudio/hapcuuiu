@@ -18,13 +18,14 @@ export function PriceChart({
   candles,
   entryZone,
   stopLoss,
-  targets,
+  targets = [],
   levels,
 }: {
   candles: Candle[];
-  entryZone: { low: number; high: number };
-  stopLoss: number;
-  targets: { level: string; price: number }[];
+  /** Undefined kalau Signal Engine belum tersedia (belum ada rencana entry/SL/TP untuk simbol ini). */
+  entryZone?: { low: number; high: number };
+  stopLoss?: number;
+  targets?: { level: string; price: number }[];
   levels: PriceLevel[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -80,29 +81,34 @@ export function PriceChart({
     );
 
     // Overlay zona entry (SPEC.md Bagian 14.2: kotak hijau transparan,
-    // disederhanakan jadi dua garis batas zona).
-    candleSeries.createPriceLine({
-      price: entryZone.low,
-      color: "#60a5fa",
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      title: "Entry Low",
-    });
-    candleSeries.createPriceLine({
-      price: entryZone.high,
-      color: "#60a5fa",
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      title: "Entry High",
-    });
+    // disederhanakan jadi dua garis batas zona) — undefined kalau Signal
+    // Engine belum tersedia untuk simbol ini (lihat prop optional di atas).
+    if (entryZone) {
+      candleSeries.createPriceLine({
+        price: entryZone.low,
+        color: "#60a5fa",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        title: "Entry Low",
+      });
+      candleSeries.createPriceLine({
+        price: entryZone.high,
+        color: "#60a5fa",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        title: "Entry High",
+      });
+    }
 
-    candleSeries.createPriceLine({
-      price: stopLoss,
-      color: DOWN,
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      title: "Stop Loss",
-    });
+    if (stopLoss !== undefined) {
+      candleSeries.createPriceLine({
+        price: stopLoss,
+        color: DOWN,
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        title: "Stop Loss",
+      });
+    }
 
     targets.forEach((t) => {
       candleSeries.createPriceLine({
@@ -116,7 +122,11 @@ export function PriceChart({
 
     // Lewati level S/R yang berdempetan (<0.8%) dengan zona entry/SL/target
     // supaya label price-line tidak bertumpuk (keterbacaan chart).
-    const occupiedPrices = [entryZone.low, entryZone.high, stopLoss, ...targets.map((t) => t.price)];
+    const occupiedPrices = [
+      ...(entryZone ? [entryZone.low, entryZone.high] : []),
+      ...(stopLoss !== undefined ? [stopLoss] : []),
+      ...targets.map((t) => t.price),
+    ];
     const visibleLevels = levels.filter(
       (l) => !occupiedPrices.some((p) => Math.abs(l.price - p) / p < 0.008)
     );
@@ -138,7 +148,7 @@ export function PriceChart({
       chartRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, entryZone.low, entryZone.high, stopLoss, JSON.stringify(targets), JSON.stringify(levels)]);
+  }, [candles, entryZone?.low, entryZone?.high, stopLoss, JSON.stringify(targets), JSON.stringify(levels)]);
 
   return <div ref={containerRef} className="h-[420px] w-full" />;
 }

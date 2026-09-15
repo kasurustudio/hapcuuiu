@@ -18,9 +18,11 @@ async def lifespan(app: FastAPI):
     # (alembic upgrade head, Celery worker/beat) — lihat DEPLOYMENT.md.
     init_db_schema()
     if is_sqlite:
+        from app.services.bootstrap import start_bootstrap_if_needed
         from app.workers.local_scheduler import start_local_scheduler, stop_local_scheduler
 
         start_local_scheduler()
+        start_bootstrap_if_needed()
 
     yield
 
