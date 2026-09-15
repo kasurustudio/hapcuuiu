@@ -128,29 +128,40 @@ sendiri kapan saja (lihat `desktop/src-tauri/binaries/README.md`).
 
 ### Ditunda / butuh tindak lanjut
 
-- **Bug ditemukan saat instalasi nyata di macOS user**: `.dmg` build
-  pertama (unsigned sama sekali, tanpa ad-hoc signature) ditolak Gatekeeper
-  dengan pesan **"is damaged and can't be opened"** — bukan cuma prompt
-  "unidentified developer" yang bisa di-bypass klik-kanan-buka. Ini
-  perilaku Gatekeeper macOS modern (Sonoma/Sequoia) untuk aplikasi yang
-  sama sekali tidak bertanda tangan, terutama di Apple Silicon: sebagian
-  resource dalam bundle (di sini kemungkinan besar binary sidecar
-  PyInstaller yang membawa banyak dylib numpy/pandas) membuat validasi
-  code-sign bundle gagal total, bukan cuma "belum terverifikasi". `xattr
-  -cr` (hapus quarantine flag) saja **tidak cukup** memperbaiki ini karena
-  akar masalahnya bukan quarantine, tapi ketiadaan signature yang valid.
-  **Fix**: ditambahkan `"signingIdentity": "-"` di
-  `desktop/src-tauri/tauri.conf.json` (bundle.macOS) supaya Tauri
-  ad-hoc-sign `.app` hasil build, plus langkah eksplisit
-  `codesign --force -s - --timestamp -v` pada binary sidecar sebelum
-  di-bundle (di `build-macos.yml`) sebagai lapisan tambahan. Ad-hoc
-  signing tidak butuh akun Apple Developer ($99/tahun) — cukup untuk
-  distribusi ke diri sendiri, tapi tetap mengharuskan sekali `xattr -cr`
-  atau klik-kanan-buka pertama kali karena file tetap quarantined saat
-  didownload browser (ini normal/diharapkan, beda dari bug "damaged").
-- **Belum ada konfirmasi ulang bahwa fix ini benar-benar menyelesaikan
-  masalah** di mesin macOS user — build baru sudah dipicu, tapi instalasi
-  nyata belum diuji ulang setelah fix.
+- **Bug instalasi nyata di macOS user — SUDAH DIPERBAIKI & DIKONFIRMASI**:
+  `.dmg` build pertama (unsigned sama sekali) ditolak Gatekeeper dengan
+  pesan **"is damaged and can't be opened"**. Root cause sebenarnya
+  **dua lapis**, ditemukan lewat diagnostik langsung di mesin user
+  (`codesign -dv --verbose=4` dan `spctl -a -vvv` pada `.app` terinstall):
+  1. Build pertama sama sekali tidak bertanda tangan → tidak bisa
+     dieksekusi di Apple Silicon sama sekali (AMFI/kernel menolak kode
+     tanpa signature apapun, bukan cuma Gatekeeper). **Fix**: ditambahkan
+     `"signingIdentity": "-"` di `desktop/src-tauri/tauri.conf.json`
+     (bundle.macOS) supaya Tauri ad-hoc-sign `.app`, plus
+     `codesign --force -s - --timestamp -v` eksplisit pada binary sidecar
+     sebelum di-bundle (`build-macos.yml`). Dikonfirmasi lewat
+     `codesign -dv` di mesin user: `Signature=adhoc`, valid, tanpa error.
+  2. **Setelah** ad-hoc signature valid, `spctl -a -vvv` tetap melaporkan
+     `rejected` — dikonfirmasi ini SELALU terjadi untuk signature ad-hoc
+     (bukan Apple Developer ID resmi) terhadap file yang membawa xattr
+     `com.apple.quarantine` (ditambahkan otomatis oleh Chrome saat
+     download, dikonfirmasi lewat `xattr -l` — `com.apple.quarantine:
+     0381;...;Chrome;...`). Percobaan `xattr -cr` sebelumnya oleh user
+     ternyata tidak benar-benar menghapus flag ini (kemungkinan sempat
+     dijalankan saat file masih di dalam `.dmg` yang read-only, sebelum
+     di-drag ke Applications, jadi copy baru di Applications tetap bawa
+     quarantine). **Fix final**: `sudo xattr -dr com.apple.quarantine
+     "/Applications/Stock Analysis Platform.app"` (bukan `xattr -cr` biasa
+     — perlu `sudo` dan target spesifik `com.apple.quarantine`, bukan
+     bersih semua attribute). Setelah ini, app terbuka normal.
+  **Kesimpulan untuk update `.dmg` berikutnya**: karena ad-hoc signing
+  tidak lolos assessment Gatekeeper (`spctl`) sama sekali (beda dari
+  Developer ID bersertifikat + notarized, yang cuma dapat warning dengan
+  tombol "Open Anyway"), user WAJIB menjalankan
+  `sudo xattr -dr com.apple.quarantine "<path .app>"` setiap kali
+  install ulang dari download baru — bukan cuma klik-kanan-buka. Ini
+  didokumentasikan di `desktop/src-tauri/binaries/README.md` sebagai
+  langkah wajib pasca-install (lihat commit berikutnya).
 - **Auto-update aplikasi desktop belum ada** — Tauri punya plugin updater
   bawaan, belum diintegrasikan; untuk saat ini update = download `.dmg`
   baru dari artifact GitHub Actions tiap ada perubahan.

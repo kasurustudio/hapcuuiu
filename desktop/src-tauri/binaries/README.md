@@ -30,3 +30,31 @@ npm run build
 Otomatis: lihat `.github/workflows/build-macos.yml` — langkah yang sama
 dijalankan CI di runner `macos-latest`, hasil `.dmg` diunggah sebagai
 artifact, tidak perlu setup manual di atas kalau cukup pakai itu.
+
+## Setelah install: WAJIB hapus quarantine flag
+
+`.app` di dalam `.dmg` ditandatangani **ad-hoc** (`signingIdentity: "-"`
+di `tauri.conf.json`), bukan pakai sertifikat Apple Developer ID resmi
+($99/tahun, belum dibeli — tidak diperlukan untuk pemakaian sendiri).
+Konsekuensinya: **Gatekeeper macOS SELALU menolak signature ad-hoc** untuk
+file yang kena quarantine flag (ditambahkan otomatis oleh browser saat
+download) — muncul sebagai dialog **"is damaged and can't be opened"**,
+bukan prompt "unidentified developer" yang bisa di-bypass klik-kanan-buka.
+
+Setiap kali install `.dmg` baru (termasuk update), setelah drag `.app` ke
+Applications, jalankan di Terminal:
+
+```bash
+sudo xattr -dr com.apple.quarantine "/Applications/Stock Analysis Platform.app"
+```
+
+Verifikasi berhasil (baris `com.apple.quarantine` sudah tidak muncul):
+
+```bash
+xattr -l "/Applications/Stock Analysis Platform.app"
+```
+
+`xattr -cr` (hapus semua attribute) atau klik-kanan-buka biasa **tidak
+cukup** — harus `-dr com.apple.quarantine` spesifik dengan `sudo`, target
+langsung ke `.app` yang sudah di-copy ke Applications (bukan yang masih
+di dalam `.dmg` mounted, itu read-only).
