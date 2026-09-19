@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    Wajib untuk sidecar PyInstaller: signingIdentity ad-hoc ("-", lihat
+    tauri.conf.json) membuat Tauri menandatangani semua binary di bundle
+    dengan hardened runtime aktif. Itu memicu macOS "Library Validation" -
+    proses menolak dlopen() library apapun yang Team ID sertifikatnya
+    tidak sama persis dengan Team ID proses itu sendiri. Binary sidecar
+    PyInstaller membundel banyak dependency terkompilasi (Python.framework,
+    numpy, pandas, dst) yang masing-masing bisa membawa signature asli dari
+    sumbernya sendiri (bukan ad-hoc kita) - dengan Library Validation aktif,
+    proses gagal total saat mencoba load Python.framework miliknya sendiri
+    ("Failed to load Python shared library ... different Team IDs").
+    Mematikan Library Validation di sini menghilangkan pengecekan itu untuk
+    sidecar ini secara spesifik (aman - ini proses backend lokal-only,
+    tidak menerima kode dari luar).
+    -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

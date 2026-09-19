@@ -49,14 +49,50 @@ tanpa error dlopen. Test suite backend tetap 163 lolos (spec PyInstaller
 tidak disentuh oleh test suite, tapi dijalankan ulang untuk memastikan
 tidak ada regresi lain).
 
-### Ditunda / butuh tindak lanjut
+### Bug kedua ditemukan setelah fix onefile: macOS Library Validation
 
-- **Belum dikonfirmasi ulang oleh user di Mac asli** — build `.dmg` baru
-  perlu dipicu ulang lewat `build-macos.yml` (otomatis oleh push ini) dan
-  user perlu install ulang + `sudo xattr -dr com.apple.quarantine` lagi
-  (quarantine flag baru tiap file baru didownload, lihat addendum
-  Gatekeeper sebelumnya) untuk validasi akhir bahwa data real benar-benar
-  terisi.
+Setelah fix onefile di atas di-build ulang dan diinstall user, error
+"Failed to load Python shared library" **berubah**, bukan hilang — tanda
+onefile sudah aktif (path error sekarang `/var/folders/.../T/_MEIxxxxx/
+Python`, ciri khas direktori extract sementara PyInstaller onefile), tapi
+gagal dengan alasan baru:
+
+```
+[PYI-64852:ERROR] Failed to load Python shared library
+'.../T/_MEIgfadM3/Python': dlopen: ... Python.framework/Versions/3.12/Python'
+not valid for use in process: mapping process and mapped file (non-platform)
+have different Team IDs
+```
+
+**Root cause**: `signingIdentity: "-"` (ad-hoc, ditambahkan di addendum
+Gatekeeper sebelumnya) membuat Tauri menandatangani ulang semua binary di
+bundle DENGAN hardened runtime aktif. Hardened runtime otomatis mengaktifkan
+**Library Validation** macOS — proses menolak `dlopen()` library apapun yang
+Team ID sertifikatnya tidak identik dengan Team ID proses itu sendiri.
+Sidecar PyInstaller membundel banyak dependency terkompilasi (Python.
+framework, dst) yang membawa signature aslinya sendiri (bukan ad-hoc kita),
+jadi begitu hardened runtime+library validation aktif, proses gagal total
+saat mencoba load Python.framework MILIKNYA SENDIRI.
+
+**Fix**: `desktop/src-tauri/entitlements.plist` baru — entitlement
+`com.apple.security.cs.disable-library-validation = true`, direferensikan
+dari `tauri.conf.json` (`bundle.macOS.entitlements`) supaya diterapkan
+Tauri ke semua binary saat signing (termasuk sidecar). Aman untuk konteks
+ini — proses backend cuma menerima koneksi dari frontend lokal sendiri,
+bukan menjalankan kode pihak ketiga. Langkah `codesign` manual di
+`build-macos.yml` untuk sidecar dihapus (jadi sungguhan tidak berguna —
+`tauri build` menandatangani ulang semua binary belakangan, jadi
+langkah manual sebelumnya cuma ditimpa percuma).
+
+**Belum diverifikasi dengan build baru di Mac asli** — fix ini didorong
+dari analisis pesan error macOS yang sudah dikenal (persis skenario
+"ad-hoc + hardened runtime + Library Validation" yang terdokumentasi
+untuk kasus PyInstaller di macOS modern), TAPI sandbox Linux ini tidak
+bisa mereproduksi/memverifikasi langsung perilaku codesign/Library
+Validation macOS (butuh macOS asli). Build `.dmg` baru sudah dipicu
+otomatis oleh push ini — user perlu install ulang (+
+`sudo xattr -dr com.apple.quarantine` seperti biasa) untuk konfirmasi
+akhir bahwa backend benar-benar jalan dan data real terisi.
 
 ## Addendum wiring data real (2026-09-15): Dashboard & Analysis konek ke backend asli
 
