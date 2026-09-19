@@ -1,5 +1,63 @@
 # Progress
 
+## Addendum fix kritis (2026-09-19): sidecar PyInstaller onedir → onefile
+
+Bug produksi ditemukan user setelah install `.dmg` hasil addendum sebelumnya:
+app terbuka normal, tapi Dashboard macet permanen di "Menghubungkan ke
+backend lokal..." — backend Python sama sekali tidak bisa diakses
+(`curl http://127.0.0.1:8756/healthz` → *connection refused*).
+
+**Root cause** (ditemukan lewat diagnostik langsung: menjalankan binary
+`.app/Contents/MacOS/stockapp-desktop` dari Terminal supaya log proses
+sidecar yang biasanya hilang jadi kelihatan):
+
+```
+[backend] [PYI-62737:ERROR] Failed to load Python shared library
+'/Applications/Stock Analysis Platform.app/Contents/Frameworks/Python':
+dlopen: ... (no such file)
+[backend] proses berhenti: TerminatedPayload { code: Some(255) }
+```
+
+`backend/desktop.spec` sejak awal (Fase pivot desktop) pakai PyInstaller
+**onedir** (`EXE(exclude_binaries=True)` + `COLLECT(...)`) — mode ini
+menghasilkan SATU DIREKTORI berisi executable PLUS banyak file pendamping
+wajib (shared library Python, dst — semuanya harus tetap berdampingan).
+Tapi baik `.github/workflows/build-macos.yml` maupun
+`desktop/src-tauri/binaries/README.md` cuma meng-copy file executable-nya
+SENDIRIAN keluar dari direktori itu (`cp dist/stockapp-backend/stockapp-
+backend ...`) untuk dipakai sebagai `externalBin` Tauri — meninggalkan
+semua file pendamping yang dibutuhkan. Ini lolos dari verifikasi
+sebelumnya karena verifikasi di sandbox Linux selalu menjalankan binary
+DARI DALAM direktori aslinya (dengan file pendamping lengkap), tidak
+pernah men-simulasikan "copy satu file executable ke lokasi lain lalu
+jalankan sendirian" — persis skenario yang dipakai Tauri sidecar di
+produksi.
+
+**Fix**: `backend/desktop.spec` diubah ke PyInstaller **onefile**
+(`EXE` langsung menerima `a.binaries`/`a.zipfiles`/`a.datas`, `COLLECT`
+dihapus) — hasilnya satu file executable + sepenuhnya self-contained
+(unpack ke direktori temp saat runtime), aman dipindah kemanapun sebagai
+satu file. `build-macos.yml` dan `binaries/README.md` disesuaikan
+(`cp dist/stockapp-backend ...`, tanpa subdirektori lagi).
+
+**Verifikasi kali ini eksplisit mensimulasikan skenario produksi**: build
+`desktop.spec` baru di sandbox ini, copy HANYA file executable-nya ke
+direktori terpisah yang benar-benar kosong (tanpa venv Python aktif sama
+sekali, `deactivate` dulu), jalankan langsung dari sana — `/healthz` 200
+OK, log lengkap (schema init, scheduler, sync_instruments 48 emiten)
+tanpa error dlopen. Test suite backend tetap 163 lolos (spec PyInstaller
+tidak disentuh oleh test suite, tapi dijalankan ulang untuk memastikan
+tidak ada regresi lain).
+
+### Ditunda / butuh tindak lanjut
+
+- **Belum dikonfirmasi ulang oleh user di Mac asli** — build `.dmg` baru
+  perlu dipicu ulang lewat `build-macos.yml` (otomatis oleh push ini) dan
+  user perlu install ulang + `sudo xattr -dr com.apple.quarantine` lagi
+  (quarantine flag baru tiap file baru didownload, lihat addendum
+  Gatekeeper sebelumnya) untuk validasi akhir bahwa data real benar-benar
+  terisi.
+
 ## Addendum wiring data real (2026-09-15): Dashboard & Analysis konek ke backend asli
 
 Setelah aplikasi desktop berhasil di-install & dijalankan user (lihat addendum

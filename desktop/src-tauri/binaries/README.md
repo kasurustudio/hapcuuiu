@@ -20,7 +20,7 @@ pip install -r requirements-desktop.txt
 pyinstaller desktop.spec --noconfirm
 
 TRIPLE=$(rustc -Vv | grep host | cut -d' ' -f2)
-cp dist/stockapp-backend/stockapp-backend ../desktop/src-tauri/binaries/stockapp-backend-$TRIPLE
+cp dist/stockapp-backend ../desktop/src-tauri/binaries/stockapp-backend-$TRIPLE
 
 cd ../desktop
 npm install
