@@ -84,15 +84,33 @@ bukan menjalankan kode pihak ketiga. Langkah `codesign` manual di
 `tauri build` menandatangani ulang semua binary belakangan, jadi
 langkah manual sebelumnya cuma ditimpa percuma).
 
-**Belum diverifikasi dengan build baru di Mac asli** — fix ini didorong
-dari analisis pesan error macOS yang sudah dikenal (persis skenario
-"ad-hoc + hardened runtime + Library Validation" yang terdokumentasi
-untuk kasus PyInstaller di macOS modern), TAPI sandbox Linux ini tidak
-bisa mereproduksi/memverifikasi langsung perilaku codesign/Library
-Validation macOS (butuh macOS asli). Build `.dmg` baru sudah dipicu
-otomatis oleh push ini — user perlu install ulang (+
-`sudo xattr -dr com.apple.quarantine` seperti biasa) untuk konfirmasi
-akhir bahwa backend benar-benar jalan dan data real terisi.
+**DIKONFIRMASI berhasil di mesin Mac asli user** setelah build `.dmg`
+run #7 diinstall — dijalankan lewat Terminal langsung (`.app/Contents/
+MacOS/stockapp-desktop`) supaya log sidecar terlihat, error "Failed to
+load Python shared library ... different Team IDs" **sudah hilang
+total**, backend startup penuh sampai scheduler jalan. Satu gangguan
+kecil sempat muncul di sesi debug ini (`[Errno 48] address already in
+use` pada percobaan run kedua) — ternyata bukan bug, cuma instance app
+sebelumnya (dibuka lewat Finder) yang masih dalam proses startup lambat
+(PyInstaller onefile extract ke temp dir tiap dibuka, makan beberapa
+detik) dan baru berhasil bind port pas user mencoba run kedua secara
+manual. Setelah proses itu selesai startup, `curl http://127.0.0.1:8756/
+healthz` mengembalikan `{"status":"ok"}` dengan normal.
+
+Fix ini awalnya didorong murni dari analisis pesan error macOS yang sudah
+dikenal (persis skenario "ad-hoc + hardened runtime + Library
+Validation" yang terdokumentasi untuk kasus PyInstaller di macOS
+modern) tanpa bisa diuji langsung di sandbox Linux — dan sekarang
+**terverifikasi benar** di mesin user.
+
+### Status akhir addendum ini
+
+Kedua bug (onedir→onefile, Library Validation) sudah dikonfirmasi
+teratasi di macOS asli. Backend jalan normal, `/healthz` merespons
+`{"status":"ok"}`. Tinggal menunggu konfirmasi apakah Dashboard di
+aplikasi benar-benar menampilkan data harga real (sync 48 emiten dari
+Yahoo Finance berjalan di background, bisa makan beberapa menit untuk
+backfill 5 tahun data pertama kali).
 
 ## Addendum wiring data real (2026-09-15): Dashboard & Analysis konek ke backend asli
 
